@@ -1,0 +1,45 @@
+name: 'build-test'
+on:
+  push:
+
+jobs:
+  build: # make sure build/ci work properly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: use node.js
+        uses: actions/setup-node@v3.6.0
+        with:
+          node-version: 16.x
+
+      - run: |
+          npm ci
+
+      - run: |
+          npm run build
+
+      - run: |
+          npm run format
+
+      - run: |
+          npm run lint
+
+      - run: |
+          npm run package
+
+  # make sure the action works on a clean machine without building
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Test configuration
+        uses: ./
+        with:
+          host: s3.example.com
+          access_key: test_key
+          secret_key: test_secret
+
+      - run: |
+          cat ~/.s3cfg

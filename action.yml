@@ -1,0 +1,16 @@
+name: Configure s3cmd
+description: Create s3cmd configuration
+author: Lars Kiesow
+inputs:
+  host:
+    required: true
+    description: Hostname of the S3 server
+  access_key:
+    required: true
+    description: The access key
+  secret_key:
+    required: true
+    description: The secret key
+runs:
+  using: node16
+  main: dist/index.js
