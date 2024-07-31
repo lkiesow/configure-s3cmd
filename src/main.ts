@@ -16,7 +16,7 @@ async function run(): Promise<void> {
 		access_key = ${access_key}
 		secret_key = ${secret_key}
 		signature_v2 = False
-	 `.replace(/\n +/g, '\n')
+	 `.replace(/\n[\t ]+/g, '\n')
 
     const home = os.homedir()
     fs.writeFileSync(`${home}/.s3cfg`, config)
