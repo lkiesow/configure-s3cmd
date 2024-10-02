@@ -7,12 +7,8 @@ This action makes it easy to create a configuration file for s3cmd.
 
 
 ```yaml
-- uses: lkiesow/matrix-notification@v1
+- uses: lkiesow/configure-s3cmd@v1
   with:
-    # The Matrix home server to send the message to
-    # Default: matrix.org
-    server: matrix.org
-
     # Hostname of the S3 server
     host: s3.example.com
 
