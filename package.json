@@ -2,6 +2,9 @@
   "private": true,
   "description": "GitHub Action to configure s3cmd",
   "main": "lib/main.js",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "tsc",
     "format": "prettier --write '**/*.ts'",
