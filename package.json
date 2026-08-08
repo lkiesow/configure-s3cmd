@@ -11,7 +11,7 @@
     "format": "biome format --write .",
     "format-check": "biome format .",
     "lint": "biome lint .",
-    "package": "rollup -c",
+    "package": "node esbuild.config.mjs",
     "all": "npm run build && npm run format && npm run lint && npm run package"
   },
   "repository": {
@@ -26,10 +26,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
-    "@rollup/plugin-commonjs": "^29.0.3",
-    "@rollup/plugin-node-resolve": "^16.0.3",
     "@types/node": "^26.2.0",
-    "rollup": "^4.62.4",
+    "esbuild": "^0.28.1",
     "typescript": "^7.0.2"
   }
 }
