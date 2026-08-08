@@ -43,3 +43,89 @@ jobs:
 
       - run: |
           cat ~/.s3cfg
+
+  # make sure the generated config actually works against a real S3-compatible server
+  integration:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      GARAGE_DEFAULT_BUCKET: ci-test-bucket
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install s3cmd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y s3cmd
+
+      - name: Generate Garage secrets and config
+        run: |
+          access_key="GK$(openssl rand -hex 16)"
+          echo "::add-mask::$access_key"
+          echo "GARAGE_DEFAULT_ACCESS_KEY=$access_key" >> "$GITHUB_ENV"
+
+          secret_key="$(openssl rand -hex 32)"
+          echo "::add-mask::$secret_key"
+          echo "GARAGE_DEFAULT_SECRET_KEY=$secret_key" >> "$GITHUB_ENV"
+
+          rpc_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$rpc_secret"
+
+          printf '%s\n' \
+            'metadata_dir = "/tmp/meta"' \
+            'data_dir = "/tmp/data"' \
+            'db_engine = "sqlite"' \
+            'replication_factor = 1' \
+            '' \
+            'rpc_bind_addr = "[::]:3901"' \
+            'rpc_public_addr = "127.0.0.1:3901"' \
+            "rpc_secret = \"$rpc_secret\"" \
+            '' \
+            '[s3_api]' \
+            's3_region = "us-east-1"' \
+            'api_bind_addr = "[::]:3900"' \
+            'root_domain = ".s3.garage.localhost"' \
+            > "$RUNNER_TEMP/garage.toml"
+
+      - name: Start Garage
+        run: |
+          docker run -d --name garage -p 3900:3900 \
+            -v "$RUNNER_TEMP/garage.toml:/etc/garage.toml" \
+            -e GARAGE_DEFAULT_ACCESS_KEY -e GARAGE_DEFAULT_SECRET_KEY -e GARAGE_DEFAULT_BUCKET \
+            dxflrs/garage:v2.3.0 /garage server --single-node --default-bucket
+
+      - name: Wait for Garage to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec garage /garage status >/dev/null 2>&1; then
+              echo "Garage is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Garage did not become ready in time"
+          docker logs garage
+          exit 1
+
+      - name: Configure s3cmd against Garage
+        uses: ./
+        with:
+          host: localhost:3900
+          access_key: ${{ env.GARAGE_DEFAULT_ACCESS_KEY }}
+          secret_key: ${{ env.GARAGE_DEFAULT_SECRET_KEY }}
+
+      - name: Round-trip a file through the real server
+        run: |
+          echo "hello from ci" > testfile.txt
+
+          s3cmd --no-ssl mb s3://ci-roundtrip-bucket
+          s3cmd --no-ssl put testfile.txt s3://ci-roundtrip-bucket/testfile.txt
+          s3cmd --no-ssl ls s3://ci-roundtrip-bucket/ | grep -q testfile.txt
+          s3cmd --no-ssl get s3://ci-roundtrip-bucket/testfile.txt downloaded.txt
+          diff testfile.txt downloaded.txt
+          s3cmd --no-ssl del s3://ci-roundtrip-bucket/testfile.txt
+          s3cmd --no-ssl rb s3://ci-roundtrip-bucket
+
+      - name: Dump Garage logs
+        if: always()
+        run: docker logs garage
